@@ -27,10 +27,11 @@ def accept_wrapper(sock,sel):
 def service_connection(key, mask, sel):
     sock = key.fileobj
     data = key.data
+    data.outb = ''
     if mask & selectors.EVENT_READ:
         recv_data = sock.recv(1024)  # Should be ready to read
         if recv_data:
-            data.outb += recv_data
+            data.outb = recv_data
         else:
             #print("closing connection to", data.addr)
             print("ERROR")
@@ -38,7 +39,6 @@ def service_connection(key, mask, sel):
             print("SOMETHING probably WENT WRONG")
     if mask & selectors.EVENT_WRITE:
         if data.outb:
-            print(type(data.outb))
             print(repr(data.outb))
             return(repr(data.outb))
             #print("echoing", repr(data.outb), "to", data.addr)
@@ -55,13 +55,13 @@ def accept_connection(sel):
 
 def get_data(sel):
     events = sel.select(timeout=0)
-    
+
     for key, mask in events:
         if key.data is None:
             #should never run
             accept_wrapper(key.fileobj,sel)
         else:
-            service_connection(key, mask,sel)
+            return service_connection(key, mask,sel)
 
 def close_connection(sock, sel):
     sel.unregister(sock)
