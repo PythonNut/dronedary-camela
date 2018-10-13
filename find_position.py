@@ -9,6 +9,7 @@ import time
 import threading
 import queue
 import PID
+from control import DroneController
 
 
 def calculate_centroid(p, q, r):
@@ -246,10 +247,9 @@ camera0 = queue.Queue()
 camera1 = queue.Queue()
 camera2 = queue.Queue()
 
-cameras = [camera0, camera1, camera2]
+cameras_list = [camera0, camera1, camera2]
 
-threading.Thread(target = cameras, args=("", 8081)).start()
-threading.Thread(target = handle_everything).start()
+
 
 def cameras(host, port):
     sel = set_up_server_socket(host, port)
@@ -258,19 +258,27 @@ def cameras(host, port):
         new_data = get_data(sel)
         if new_data:
             # parse data, and append to queue
-            while len(new_data) > 0:
-                camera = cameras[new_data[0]]
+            new_data = new_data.replace("'","")
+            new_data = new_data.replace("b","")
+            #print(new_data)
+            while True:
+                int_list = new_data.split(',',3)
+                if int_list[0] == '':
+                    break
+                camera = cameras_list[int(int_list[0])]
 
-                drone_x = int.from_bytes(new_data[1:5],'big',signed=false)
-                drone_y = int.from_bytes(new_data[5:9],'big',signed=false)
-                #p_x = int.from_bytes(new_data[1:5],'little',signed=false)
-                #p_y = int.from_bytes(new_data[5:9],'little',signed=false)
-                #q_x = int.from_bytes(new_data[9:13],'little',signed=false)
-                #q_y = int.from_bytes(new_data[13:17],'little',signed=false)
-                #r_x = int.from_bytes(new_data[17:21],'little',signed=false)
-                #r_y = int.from_bytes(new_data[21:25],'little',signed=false)
-
-                new_data = new_data[9:] ## remember to change THIS!!
+                drone_x = int(int_list[1])
+                drone_y = int(int_list[2])
+                #p_x = int.from_bytes(new_data[1:5],'little',signed=False)
+                #p_y = int.from_bytes(new_data[5:9],'little',signed=False)
+                #q_x = int.from_bytes(new_data[9:13],'little',signed=False)
+                #q_y = int.from_bytes(new_data[13:17],'little',signed=False)
+                #r_x = int.from_bytes(new_data[17:21],'little',signed=False)
+                #r_y = int.from_bytes(new_data[21:25],'little',signed=False)
+                if len(int_list) > 3:
+                    new_data = int_list[3] ## remember to change THIS!!
+                else:
+                    break
                 camera.put(np.array([drone_x,drone_y]))
                 #camera.put(np.array([[drone_x,drone_y],[p_x,p_y],[q_x,q_y],[r_x,r_y]]))
 
@@ -281,8 +289,8 @@ def handle_everything():
     xpid.set_point = 0
     ypid.set_point = 0
     zpid.set_point = 300
-    controller = DroneControlelr.DroneController()
-    while not_fail:
+    controller = DroneController()
+    while True:
         if not camera0.empty() and not camera1.empty():
             while not camera0.empty():
                 data0 = camera0.get()
@@ -306,3 +314,6 @@ def handle_everything():
 
 
             controller.fly(t,x_x,y_y)
+            print(t,x_x,y_y)
+threading.Thread(target = cameras, args=("", 8082)).start()
+threading.Thread(target = handle_everything).start()
