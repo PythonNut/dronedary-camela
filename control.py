@@ -15,9 +15,11 @@ class DroneController(object):
         self.sock.close()
 
     def float_to_byte_unsigned(self, f):
+        f = max(min(f, 1), 0)
         return round(f * 255)
 
     def float_to_byte_signed(self, f):
+        f = max(min(f, 1), -1)
         return round(f * 127) + 128
 
     def fly(self, t, x, y):
