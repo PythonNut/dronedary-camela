@@ -9,6 +9,7 @@ class DroneController(object):
     def __init__(self):
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.sock.bind(("", self.UDP_PORT))
+        self.fly(0, 0, 0)
     
     def __del__(self):
         self.sock.close()
