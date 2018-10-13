@@ -1,5 +1,3 @@
-import socket#!/usr/bin/env python3
-
 import sys
 import socket
 import selectors
@@ -49,11 +47,18 @@ def service_connection(key, mask, sel):
             #sent = sock.send(data.outb)  # Should be ready to write
             #data.outb = data.outb[sent:]
 
+def accept_connection(sel):
+    events = sel.select(timeout=0)
+    for key, mask in events:
+        if key.data is None:
+            accept_wrapper(key.fileobj,sel)
+
 def get_data(sel):
     events = sel.select(timeout=0)
     
     for key, mask in events:
         if key.data is None:
+            #should never run
             accept_wrapper(key.fileobj,sel)
         else:
             service_connection(key, mask,sel)
