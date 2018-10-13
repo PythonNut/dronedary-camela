@@ -50,7 +50,7 @@ while True:
 
     c = cv2.HoughCircles(mask, cv2.HOUGH_GRADIENT, 0.5, 41, param1=70, param2=10, minRadius=5,maxRadius=25)
     print(c)
-    if c and DEBUG:
+    if c is not None and DEBUG:
         # convert the (x, y) coordinates and radius of the circles to integers
         circles = np.round(c[0, :]).astype("int")
 
