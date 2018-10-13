@@ -2,11 +2,11 @@ import cv2
 import numpy as np
 import client
 
-s = client.setup_socket("", 8081)
-
 DEBUG = True
 ID_BYTE = 0x0
 TARGET_IP = "134.173.0.0"
+
+s = client.setup_socket(TARGET_IP, 8081)
 
 red_angle_width = 10
 red_min_brightness = 20
@@ -77,7 +77,7 @@ while True:
             pass
         
         x, y, r = circles[0]
-        send_data(s, bytearray([ID_BYTE, 0, 0, x//256, x%256, 0, 0, y//256, y%256]))
+        client.send_data(s, bytearray([ID_BYTE, 0, 0, x//256, x%256, 0, 0, y//256, y%256]))
 
     #bmask = cv2.inRange(hsv, blue_lower, blue_upper)
     # c = cv2.HoughCircles(img[:,:,2], cv2.HOUGH_GRADIENT, 0.5, 41, param1=30, param2=15, minRadius=5,maxRadius=15)
