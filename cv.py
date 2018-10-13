@@ -3,10 +3,10 @@ import numpy as np
 import client
 
 DEBUG = True
-ID_BYTE = 0x0
-TARGET_IP = "134.173.0.0"
+ID_BYTE = 0x1
+TARGET_IP = "134.173.55.124"
 
-s = client.setup_socket(TARGET_IP, 8081)
+s = client.set_up_client_socket(TARGET_IP, 8081)
 
 red_angle_width = 10
 red_min_brightness = 20
@@ -24,7 +24,7 @@ blue_min_saturation = 40
 blue_lower = np.array([120-blue_angle_width, blue_min_brightness, blue_min_saturation])
 blue_upper = np.array([120+blue_angle_width, 255, 255])
 
-cam = cv2.VideoCapture(1)
+cam = cv2.VideoCapture(0)
 
 def iterative_refine(img, iterations=1):
     for _ in range(2):
@@ -78,7 +78,7 @@ while True:
         
         x, y, r = circles[0]
         #client.send_data(s, bytearray([ID_BYTE, 0, 0, x//256, x%256, 0, 0, y//256, y%256]))
-        client.send_data(','.join(map(str, [ID_BYTE, x, y])))
+        client.send_data(s,','.join(map(str, [ID_BYTE, x, y])))
 
     #bmask = cv2.inRange(hsv, blue_lower, blue_upper)
     # c = cv2.HoughCircles(img[:,:,2], cv2.HOUGH_GRADIENT, 0.5, 41, param1=30, param2=15, minRadius=5,maxRadius=15)
