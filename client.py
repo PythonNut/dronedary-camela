@@ -8,4 +8,4 @@ def set_up_client_socket(host,port):
     return s
 
 def send_data(socket, data):
-    socket.sendall(data)
+    socket.sendall(bytes(data, 'utf-8'))

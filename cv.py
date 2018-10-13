@@ -77,7 +77,8 @@ while True:
             pass
         
         x, y, r = circles[0]
-        client.send_data(s, bytearray([ID_BYTE, 0, 0, x//256, x%256, 0, 0, y//256, y%256]))
+        #client.send_data(s, bytearray([ID_BYTE, 0, 0, x//256, x%256, 0, 0, y//256, y%256]))
+        client.send_data(','.join(map(str, [ID_BYTE, x, y])))
 
     #bmask = cv2.inRange(hsv, blue_lower, blue_upper)
     # c = cv2.HoughCircles(img[:,:,2], cv2.HOUGH_GRADIENT, 0.5, 41, param1=30, param2=15, minRadius=5,maxRadius=15)
