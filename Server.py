@@ -40,8 +40,11 @@ def service_connection(key, mask, sel):
             print("SOMETHING probably WENT WRONG")
     if mask & selectors.EVENT_WRITE:
         if data.outb:
+            print(type(data.outb))
+            print(repr(data.outb))
+            return(repr(data.outb))
             #print("echoing", repr(data.outb), "to", data.addr)
-            return repr(data.obj)
+            #return repr(data.outb)
             #following could send back to client...
             #sent = sock.send(data.outb)  # Should be ready to write
             #data.outb = data.outb[sent:]
