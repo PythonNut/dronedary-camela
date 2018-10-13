@@ -1,6 +1,8 @@
 import cv2
 import numpy as np
 
+DEBUG = True
+
 red_angle_width = 10
 red_min_brightness = 20
 red_min_saturation = 15
@@ -19,13 +21,10 @@ while True:
 
     img = cv2.GaussianBlur(img,(5,5),0)
 
-
     hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
     mask1 = cv2.inRange(hsv, red_lower1, red_upper1)
     mask2 = cv2.inRange(hsv, red_lower2, red_upper2)
 
-    #mask_rgb1 = cv2.cvtColor(mask1, cv2.COLOR_GRAY2BGR)
-    #mask_rgb2 = cv2.cvtColor(mask2, cv2.COLOR_GRAY2BGR)
     mask = mask1 | mask2
 
     ff = mask.copy()
@@ -43,21 +42,15 @@ while True:
     #gray = cv2.GaussianBlur(gray,(5,5),0)
     #gray = cv2.medianBlur(gray,5)
 
-    #gray = cv2.adaptiveThreshold(gray,255,cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY,11,3.5)
-
     kernel = np.ones((3,3),np.uint8)
 
     for _ in range(2):
         gray = cv2.erode(gray,kernel,iterations = 1)
         gray = cv2.dilate(gray,kernel,iterations = 1)
 
-    #ret,thresh = cv2.threshold(imgray, 200, 255, cv2.THRESH_BINARY)
-    c = cv2.HoughCircles(mask, cv2.HOUGH_GRADIENT, 0.5, 41, param1=70,
-param2=10, minRadius=5,maxRadius=25)
+    c = cv2.HoughCircles(mask, cv2.HOUGH_GRADIENT, 0.5, 41, param1=70, param2=10, minRadius=5,maxRadius=25)
     print(c)
-    #cv2.imshow('my webcam', img)
-    # ensure at least some circles were found
-    if c is not None:
+    if c and DEBUG:
         # convert the (x, y) coordinates and radius of the circles to integers
         circles = np.round(c[0, :]).astype("int")
 
@@ -68,10 +61,8 @@ param2=10, minRadius=5,maxRadius=25)
             cv2.circle(output, (x, y), r, (0, 255, 0), 4)
             cv2.rectangle(output, (x - 5, y - 5), (x + 5, y + 5), (0, 128, 255), -1)
 
-        # show the output image
     cv2.imshow("output", output)
     cv2.imshow("gray", gray)
-    #cv2.imshow("mask", mask1 | mask2)
     if cv2.waitKey(1) == 27:
         break
 
