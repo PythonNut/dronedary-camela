@@ -1,6 +1,15 @@
 import numpy as np
 import math
 import itertools
+import sys
+import socket
+import selectors
+import types
+import time
+import threading
+import queue
+import PID
+
 
 def calculate_centroid(p, q, r):
     return np.mean(np.array([p,q,r]), axis=2)
@@ -169,3 +178,131 @@ def get_x_y_z(drone, p, q, r):
         Hs[camera_num] = h + h_prime
     drone_h = np.mean(H)
     return np.append(drone_pos,drone_h)
+
+def set_up_server_socket(host, port):
+    #Please close sel
+    sel = selectors.DefaultSelector()
+    lsock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    lsock.bind((host, port))
+    lsock.listen()
+    print("listening on", (host, port))
+    lsock.setblocking(False)
+    sel.register(lsock, selectors.EVENT_READ, data=None)
+    return sel
+
+def accept_wrapper(sock,sel):
+    conn, addr = sock.accept()  # Should be ready to read
+    print("accepted connection from", addr)
+    conn.setblocking(False)
+    data = types.SimpleNamespace(addr=addr, inb=b"", outb=b"")
+    events = selectors.EVENT_READ | selectors.EVENT_WRITE
+    sel.register(conn, events, data=data)
+
+
+def service_connection(key, mask, sel):
+    sock = key.fileobj
+    data = key.data
+    if mask & selectors.EVENT_READ:
+        recv_data = sock.recv(1024)  # Should be ready to read
+        if recv_data:
+            data.outb += recv_data
+        else:
+            #print("closing connection to", data.addr)
+            print("ERROR")
+            print("ERROR")
+            print("SOMETHING probably WENT WRONG")
+    if mask & selectors.EVENT_WRITE:
+        if data.outb:
+            #print(type(data.outb))
+            #print(repr(data.outb))
+            return(repr(data.outb))
+            #print("echoing", repr(data.outb), "to", data.addr)
+            #return repr(data.outb)
+            #following could send back to client...
+            #sent = sock.send(data.outb)  # Should be ready to write
+            #data.outb = data.outb[sent:]
+
+def accept_connection(sel):
+    events = sel.select(timeout=0)
+    for key, mask in events:
+        if key.data is None:
+            accept_wrapper(key.fileobj,sel)
+
+def get_data(sel):
+    events = sel.select(timeout=0)
+
+    for key, mask in events:
+        if key.data is None:
+            #should never run
+            accept_wrapper(key.fileobj,sel)
+        else:
+            return service_connection(key, mask,sel)
+
+def close_connection(sock, sel):
+    sel.unregister(sock)
+    sock.close()
+
+camera0 = queue.Queue()
+camera1 = queue.Queue()
+camera2 = queue.Queue()
+
+cameras = [camera0, camera1, camera2]
+
+threading.Thread(target = cameras, args=("", 8081)).start()
+threading.Thread(target = handle_everything).start()
+
+def cameras(host, port):
+    sel = set_up_server_socket(host, port)
+    while True:
+        accept_connection(sel)
+        new_data = get_data(sel)
+        if new_data:
+            # parse data, and append to queue
+            while len(new_data) > 0:
+                camera = cameras[new_data[0]]
+
+                drone_x = int.from_bytes(new_data[1:5],'big',signed=false)
+                drone_y = int.from_bytes(new_data[5:9],'big',signed=false)
+                #p_x = int.from_bytes(new_data[1:5],'little',signed=false)
+                #p_y = int.from_bytes(new_data[5:9],'little',signed=false)
+                #q_x = int.from_bytes(new_data[9:13],'little',signed=false)
+                #q_y = int.from_bytes(new_data[13:17],'little',signed=false)
+                #r_x = int.from_bytes(new_data[17:21],'little',signed=false)
+                #r_y = int.from_bytes(new_data[21:25],'little',signed=false)
+
+                new_data = new_data[9:] ## remember to change THIS!!
+                camera.put(np.array([drone_x,drone_y]))
+                #camera.put(np.array([[drone_x,drone_y],[p_x,p_y],[q_x,q_y],[r_x,r_y]]))
+
+def handle_everything():
+    xpid = PID.PID(P=1, I=1, D=.01)
+    ypid = PID.PID(P=1, I=1, D=.01)
+    zpid = PID.PID(P=1, I=1, D=.01)
+    xpid.set_point = 0
+    ypid.set_point = 0
+    zpid.set_point = 300
+    controller = DroneControlelr.DroneController()
+    while not_fail:
+        if not camera0.empty() and not camera1.empty():
+            while not camera0.empty():
+                data0 = camera0.get()
+            while not camera1.empty():
+                data1 = camera1.get()
+            #while not camera2.empty():
+            #    data2 = camera2.get()
+
+            #drone = np.vstack((data0[0],data1[0]))
+            #p = np.vstack((data0[1],data1[1]))
+            #q = np.vstack((data0[2],data1[2]))
+            #r = np.vstack((data0[3],data1[3]))
+
+
+
+            #x,y,z = get_x_y_z(drone, p, q, r)
+
+            x_x = xpid.update(data0[0] - 640)/100
+            y_y = ypid.update(data1[0] - 640)/100
+            t = zpid.update(720-data0[1])/100
+
+
+            controller.fly(t,x_x,y_y)

@@ -3,6 +3,7 @@ import socket
 import selectors
 import types
 import time
+import threading
 
 def set_up_server_socket(host, port):
     #Please close sel
@@ -66,3 +67,20 @@ def get_data(sel):
 def close_connection(sock, sel):
     sel.unregister(sock)
     sock.close()
+
+
+threads = []
+
+t = threading.Thread(target = handle_camera, args=(client,address))
+while True:
+
+for i in range(len())
+    t = threading.Thread(target = handle_camera, args=(client,address,len(threads)))
+    t.start()
+    threads.append(t)
+
+def cameras(host, port):
+    sel = set_up_server_socket(host, port):
+    while True:
+        accept_connection(sel)
+        get_data(sel)
