@@ -1,102 +1,78 @@
-# import the necessary packages
-from collections import deque
-from imutils.video import VideoStream
-import numpy as np
-import argparse
 import cv2
-import imutils
-import time
+import numpy as np
 
+red_angle_width = 10
+red_min_brightness = 20
+red_min_saturation = 15
+red_lower1 = np.array([0,red_min_brightness,red_min_saturation])
+red_upper1 = np.array([red_angle_width,255,255])
 
-# define the lower and upper boundaries of the "green"
-# ball in the HSV color space, then initialize the
-# list of tracked points
-greenLower = (29, 86, 6)
-greenUpper = (64, 255, 255)
-pts = deque(maxlen=100)
+red_lower2 = np.array([180-red_angle_width,red_min_brightness,red_min_saturation])
+red_upper2 = np.array([180,255,255])
 
-vs = VideoStream(src=0).start()
+cam = cv2.VideoCapture(1)
 
-time.sleep(2.0)
-
-# keep looping
 while True:
-    # grab the current frame
-    frame = vs.read()
+    ret_val, img = cam.read()
+    #red = img.copy()[:,:,0]
+    output = img.copy()
 
-    # if we are viewing a video and we did not grab a frame,
-    # then we have reached the end of the video
-    if frame is None:
+    img = cv2.GaussianBlur(img,(5,5),0)
+
+
+    hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+    mask1 = cv2.inRange(hsv, red_lower1, red_upper1)
+    mask2 = cv2.inRange(hsv, red_lower2, red_upper2)
+
+    #mask_rgb1 = cv2.cvtColor(mask1, cv2.COLOR_GRAY2BGR)
+    #mask_rgb2 = cv2.cvtColor(mask2, cv2.COLOR_GRAY2BGR)
+    mask = mask1 | mask2
+
+    ff = mask.copy()
+    h, w = mask.shape[:2]
+    mask2 = np.zeros((h+2, w+2), np.uint8)
+    cv2.floodFill(ff, mask2, (0,0), 255)
+
+    #ff = cv2.bitwise_not(ff)
+
+    #mask = mask | cv2.bitwise_not(ff)
+    mask_rgb = cv2.cvtColor(mask, cv2.COLOR_GRAY2BGR)
+    img = img & mask_rgb
+
+    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    #gray = cv2.GaussianBlur(gray,(5,5),0)
+    #gray = cv2.medianBlur(gray,5)
+
+    #gray = cv2.adaptiveThreshold(gray,255,cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY,11,3.5)
+
+    kernel = np.ones((3,3),np.uint8)
+
+    for _ in range(2):
+        gray = cv2.erode(gray,kernel,iterations = 1)
+        gray = cv2.dilate(gray,kernel,iterations = 1)
+
+    #ret,thresh = cv2.threshold(imgray, 200, 255, cv2.THRESH_BINARY)
+    c = cv2.HoughCircles(mask, cv2.HOUGH_GRADIENT, 0.5, 41, param1=70,
+param2=10, minRadius=5,maxRadius=25)
+    print(c)
+    #cv2.imshow('my webcam', img)
+    # ensure at least some circles were found
+    if c is not None:
+        # convert the (x, y) coordinates and radius of the circles to integers
+        circles = np.round(c[0, :]).astype("int")
+
+        # loop over the (x, y) coordinates and radius of the circles
+        for (x, y, r) in circles:
+            # draw the circle in the output image, then draw a rectangle
+            # corresponding to the center of the circle
+            cv2.circle(output, (x, y), r, (0, 255, 0), 4)
+            cv2.rectangle(output, (x - 5, y - 5), (x + 5, y + 5), (0, 128, 255), -1)
+
+        # show the output image
+    cv2.imshow("output", output)
+    cv2.imshow("gray", gray)
+    #cv2.imshow("mask", mask1 | mask2)
+    if cv2.waitKey(1) == 27:
         break
 
-    # resize the frame, blur it, and convert it to the HSV
-    # color space
-    frame = imutils.resize(frame, width=600)
-    blurred = cv2.GaussianBlur(frame, (11, 11), 0)
-    hsv = cv2.cvtColor(blurred, cv2.COLOR_BGR2HSV)
-
-    # construct a mask for the color "green", then perform
-    # a series of dilations and erosions to remove any small
-    # blobs left in the mask
-    mask = cv2.inRange(hsv, greenLower, greenUpper)
-    mask = cv2.erode(mask, None, iterations=2)
-    mask = cv2.dilate(mask, None, iterations=2)
-
-    # find contours in the mask and initialize the current
-    # (x, y) center of the ball
-    cnts = cv2.findContours(mask.copy(), cv2.RETR_EXTERNAL,
-        cv2.CHAIN_APPROX_SIMPLE)
-    cnts = cnts[0] if imutils.is_cv2() else cnts[1]
-    center = None
-
-    # only proceed if at least one contour was found
-    if len(cnts) > 0:
-        # find the largest contour in the mask, then use
-        # it to compute the minimum enclosing circle and
-        # centroid
-        c = max(cnts, key=cv2.contourArea)
-        ((x, y), radius) = cv2.minEnclosingCircle(c)
-        M = cv2.moments(c)
-        center = (int(M["m10"] / M["m00"]), int(M["m01"] / M["m00"]))
-
-        # only proceed if the radius meets a minimum size
-        if radius > 10:
-            # draw the circle and centroid on the frame,
-            # then update the list of tracked points
-            cv2.circle(frame, (int(x), int(y)), int(radius),
-                (0, 255, 255), 2)
-            cv2.circle(frame, center, 5, (0, 0, 255), -1)
-
-    # update the points queue
-    pts.appendleft(center)
-
-        # loop over the set of tracked points
-    for i in range(1, len(pts)):
-        # if either of the tracked points are None, ignore
-        # them
-        if pts[i - 1] is None or pts[i] is None:
-            continue
-
-        # otherwise, compute the thickness of the line and
-        # draw the connecting lines
-        thickness = int(np.sqrt(args["buffer"] / float(i + 1)) * 2.5)
-        cv2.line(frame, pts[i - 1], pts[i], (0, 0, 255), thickness)
-
-    # show the frame to our screen
-    cv2.imshow("Frame", frame)
-    key = cv2.waitKey(1) & 0xFF
-
-    # if the 'q' key is pressed, stop the loop
-    if key == ord("q"):
-        break
-
-# if we are not using a video file, stop the camera video stream
-if not args.get("video", False):
-    vs.stop()
-
-# otherwise, release the camera
-else:
-    vs.release()
-
-# close all windows
 cv2.destroyAllWindows()
